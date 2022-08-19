@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-
+	"optimization/internal/pkg/morph"
 	"optimization/internal/pkg/sentence"
 )
 
@@ -22,13 +22,24 @@ type concepter struct {
 }
 
 func NewConcepterAction(rep Repository) *concepter {
-	return &concepter{rep: rep}
+	return &concepter{rep}
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
+	parts := splitSentence(s)
+
+	for _, part := range parts {
+		for _, word := range part.Sentence.Words {
+			if *word.Tag.POS == morph.PartOfSpeachNOUN {
+				part.Word = &word
+				break
+			}
+		}
+	}
+
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
-	//разбиваем на части // по 1, по 2 ... по n
+	//разбиваем на части // по 1, по 2 ... по n // n - количество слов
 	//затем для каждой части
 	//
 	//// 1. ищем первое с начала имя сущ., получаем падеж, для того чтобы потом склонить в эту форму слово
@@ -55,4 +66,24 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//необходимо выполнить команду для перемещения
 
 	return nil, nil
+}
+
+// TODO
+// рефакторинг
+
+type Part struct {
+	Sentence sentence.Sentence
+	Word     *sentence.Form
+}
+
+func splitSentence(s *sentence.Sentence) []Part {
+	var parts []Part
+	for i := 1; uint(i) < s.CountWord; i++ { // неправильно
+		parts = append(parts, Part{sentence.Sentence{
+			ID:        uint(i),
+			CountWord: uint(i),
+			Words:     s.Words[:i],
+		}, nil})
+	}
+	return parts
 }

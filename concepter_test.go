@@ -24,7 +24,7 @@ func TestNewConcepterAction(t *testing.T) {
 	rep.EXPECT().
 		GetByTemplate(context.Background(), partSentence).
 		AnyTimes().
-		Return(partSentence)
+		Return([]sentence.Sentence{partSentence}, nil)
 
 	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
 	c := NewConcepterAction(rep)
@@ -37,84 +37,88 @@ func TestNewConcepterAction(t *testing.T) {
 
 func getSentence(str string) sentence.Sentence {
 	m := make(map[string]string)
-	m["глагол в повелительном наклонении"] = `[{},{"word":"-"},
-    {
-		"word": "глагол",
-		"normalForm": "глагол",
-		"score": 0.75,
-		"positionInSentence": 0,
-		"tag": {
-		"pos": "NOUN",
-			"animacy": "inan",
-			"aspect": "",
-			"case": "nomn",
-			"gender": "masc",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-	}
-	},{
-        "word": "в",
-        "normalForm": "в",
-        "score": 0.999327,
-        "positionInSentence": 0,
-        "tag": {
-            "pos": "PREP",
-            "animacy": "",
-            "aspect": "",
-            "case": "",
-            "gender": "",
-            "involvement": "",
-            "mood": "",
-            "number": "",
-            "person": "",
-            "tense": "",
-            "transitivity": "",
-            "voice": ""
-        }
-    },{
-        "word": "повелительном",
-        "normalForm": "повелительный",
-        "score": 0.5,
-        "positionInSentence": 0,
-        "tag": {
-            "pos": "ADJF",
-            "animacy": "",
-            "aspect": "",
-            "case": "loct",
-            "gender": "masc",
-            "involvement": "",
-            "mood": "",
-            "number": "sing",
-            "person": "",
-            "tense": "",
-            "transitivity": "",
-            "voice": ""
-        }
-    },{
-        "word": "наклонении",
-        "normalForm": "наклонение",
-        "score": 1.0,
-        "positionInSentence": 0,
-        "tag": {
-            "pos": "NOUN",
-            "animacy": "inan",
-            "aspect": "",
-            "case": "loct",
-            "gender": "neut",
-            "involvement": "",
-            "mood": "",
-            "number": "sing",
-            "person": "",
-            "tense": "",
-            "transitivity": "",
-            "voice": ""
-        }
-    }]`
+	m["глагол в повелительном наклонении"] = `{
+	"id": 0,
+	"count_words": 6,
+	"words": [{},{"word":"-"},
+		{
+			"word": "глагол",
+			"normalForm": "глагол",
+			"score": 0.75,
+			"positionInSentence": 0,
+			"tag": {
+			"pos": "NOUN",
+				"animacy": "inan",
+				"aspect": "",
+				"case": "nomn",
+				"gender": "masc",
+				"involvement": "",
+				"mood": "",
+				"number": "sing",
+				"person": "",
+				"tense": "",
+				"transitivity": "",
+				"voice": ""
+		}
+		},{
+			"word": "в",
+			"normalForm": "в",
+			"score": 0.999327,
+			"positionInSentence": 0,
+			"tag": {
+				"pos": "PREP",
+				"animacy": "",
+				"aspect": "",
+				"case": "",
+				"gender": "",
+				"involvement": "",
+				"mood": "",
+				"number": "",
+				"person": "",
+				"tense": "",
+				"transitivity": "",
+				"voice": ""
+			}
+		},{
+			"word": "повелительном",
+			"normalForm": "повелительный",
+			"score": 0.5,
+			"positionInSentence": 0,
+			"tag": {
+				"pos": "ADJF",
+				"animacy": "",
+				"aspect": "",
+				"case": "loct",
+				"gender": "masc",
+				"involvement": "",
+				"mood": "",
+				"number": "sing",
+				"person": "",
+				"tense": "",
+				"transitivity": "",
+				"voice": ""
+			}
+		},{
+			"word": "наклонении",
+			"normalForm": "наклонение",
+			"score": 1.0,
+			"positionInSentence": 0,
+			"tag": {
+				"pos": "NOUN",
+				"animacy": "inan",
+				"aspect": "",
+				"case": "loct",
+				"gender": "neut",
+				"involvement": "",
+				"mood": "",
+				"number": "sing",
+				"person": "",
+				"tense": "",
+				"transitivity": "",
+				"voice": ""
+			}
+		}]
+	}`
 
 	m["необходимо выполнить команду для глагола в повелительном наклонении"] = ``
 	m["необходимо выполнить команду для перемещения"] = ``
