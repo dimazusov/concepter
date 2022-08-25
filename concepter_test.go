@@ -39,11 +39,8 @@ func getSentence(str string) sentence.Sentence {
 	m := make(map[string]string)
 	m["глагол в повелительном наклонении"] = `{
 	"id": 0,
-	"count_words": 6,
-	"words": [{}, {
-			"word": "-"
-		},
-		{
+	"count_words": 4,
+	"words": [{
 			"word": "глагол",
 			"normalForm": "глагол",
 			"score": 0.75,
@@ -125,11 +122,8 @@ func getSentence(str string) sentence.Sentence {
 
 	m["необходимо выполнить команду для глагола в повелительном наклонении"] = `{
 	"id": 0,
-	"count_words": 6,
-	"words": [{}, {
-			"word": "-"
-		},
-		{
+	"count_words": 8,
+	"words": [{
 			"word": "необходимо",
 			"normalForm": "необходимо",
 			"score": 0.5,
@@ -292,11 +286,8 @@ func getSentence(str string) sentence.Sentence {
 }`
 	m["необходимо выполнить команду для перемещения"] = `{
 	"id": 0,
-	"count_words": 6,
-	"words": [{}, {
-			"word": "-"
-		},
-		{
+	"count_words": 5,
+	"words": [{
 			"word": "необходимо",
 			"normalForm": "необходимо",
 			"score": 0.5,

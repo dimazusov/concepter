@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/pkg/errors"
 	"optimization/internal/pkg/morph"
 	"optimization/internal/pkg/sentence"
 )
@@ -17,6 +18,11 @@ type MorphClient interface {
 	ChangePOS(ctx context.Context, word sentence.Form, pos string)
 }
 
+type template struct {
+	part     *sentence.Part
+	sentence []sentence.Sentence
+}
+
 type concepter struct {
 	rep Repository
 }
@@ -26,16 +32,24 @@ func NewConcepterAction(rep Repository) *concepter {
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
-	parts := splitSentence(s)
-
-	for _, part := range parts {
-		for _, word := range part.Sentence.Words {
-			if *word.Tag.POS == morph.PartOfSpeachNOUN {
-				part.Word = &word
-				break
+	parts := s.SplitSentence()
+	findCases(parts) // 1
+	parts = removeUnnecessary(parts)
+	if parts == nil {
+		return nil, errors.New("the sentence does not contain any nouns")
+	}
+	for _, part := range parts { // 2
+		for n, word := range part.Sentence.Words {
+			if word.Word == part.Word.Word { // возможно неверно
+				part.Sentence.Words[n].ToNomn()
 			}
 		}
 	}
+	template, err := m.findTemplate(ctx, parts)
+	if err != nil {
+		return nil, err
+	}
+	_ = template
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -68,22 +82,42 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return nil, nil
 }
 
-// TODO
-// рефакторинг
-
-type Part struct {
-	Sentence sentence.Sentence
-	Word     *sentence.Form
+func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*template, error) {
+	defer func() {
+		if r := recover(); r != nil {
+			parts = parts[1:]
+		}
+	}()
+	if len(parts) == 1 {
+		return &template{
+			part:     parts[0],
+			sentence: []sentence.Sentence{parts[0].Sentence},
+		}, nil
+	}
+	s, err := m.rep.GetByTemplate(ctx, parts[0].Sentence)
+	return &template{
+		part:     parts[0],
+		sentence: s,
+	}, err
 }
 
-func splitSentence(s *sentence.Sentence) []Part {
-	var parts []Part
-	for i := 1; uint(i) < s.CountWord; i++ { // неправильно
-		parts = append(parts, Part{sentence.Sentence{
-			ID:        uint(i),
-			CountWord: uint(i),
-			Words:     s.Words[:i],
-		}, nil})
+func findCases(parts []*sentence.Part) {
+	for _, part := range parts {
+		for _, word := range part.Sentence.Words {
+			if *word.Tag.POS == morph.PartOfSpeachNOUN {
+				(*part).Word = &word
+				break
+			}
+		}
 	}
-	return parts
+}
+
+func removeUnnecessary(parts []*sentence.Part) []*sentence.Part {
+	var result []*sentence.Part
+	for _, part := range parts {
+		if part.Word != nil {
+			result = append(result, part)
+		}
+	}
+	return result
 }

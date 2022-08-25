@@ -1,5 +1,9 @@
 package sentence
 
+import (
+	"optimization/internal/pkg/morph"
+)
+
 type Sentence struct {
 	ID        uint   `json:"id" db:"id"`
 	CountWord uint   `json:"count_words"`
@@ -29,4 +33,32 @@ type Tag struct {
 	Tense        *string `json:"tense" db:"tense"`
 	Transitivity *string `json:"transitivity" db:"transitivity"`
 	Voice        *string `json:"voice" db:"voice"`
+}
+
+type Part struct {
+	Sentence Sentence
+	Word     *Form
+}
+
+func (s *Sentence) SplitSentence() []*Part {
+	var (
+		parts []*Part
+		id    = 0
+	)
+	for i := 0; uint(i) < s.CountWord; i++ {
+		for j := i + 1; uint(j) <= s.CountWord; j++ {
+			parts = append(parts, &Part{Sentence{
+				ID:        uint(id),
+				CountWord: uint(id),
+				Words:     s.Words[i:j],
+			}, nil})
+			id++
+		}
+	}
+	return parts
+}
+
+func (f *Form) ToNomn() { // скорее всего это не все
+	f.Word = f.NormalForm
+	*f.Tag.POS = morph.CaseNomn
 }
