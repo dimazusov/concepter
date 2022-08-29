@@ -38,14 +38,8 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if parts == nil {
 		return nil, errors.New("the sentence does not contain any nouns")
 	}
-	for _, part := range parts { // 2
-		for n, word := range part.Sentence.Words {
-			if word.Word == part.Word.Word { // возможно неверно
-				part.Sentence.Words[n].ToNomn()
-			}
-		}
-	}
-	template, err := m.findTemplate(ctx, parts)
+	toNomn(parts)                               // 2
+	template, err := m.findTemplate(ctx, parts) // 3
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +76,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return nil, nil
 }
 
-func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*template, error) {
+func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*template, error) { // неверно
 	defer func() {
 		if r := recover(); r != nil {
 			parts = parts[1:]
@@ -99,6 +93,16 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*t
 		part:     parts[0],
 		sentence: s,
 	}, err
+}
+
+func toNomn(parts []*sentence.Part) {
+	for _, part := range parts {
+		for n, word := range part.Sentence.Words {
+			if word.Word == part.Word.Word { // возможно неверно
+				part.Sentence.Words[n].ToNomn()
+			}
+		}
+	}
 }
 
 func findCases(parts []*sentence.Part) {

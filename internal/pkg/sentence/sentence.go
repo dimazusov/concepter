@@ -14,7 +14,7 @@ type Form struct {
 	ID                 uint    `json:"id" db:"id"`
 	JudgmentID         uint    `json:"judgmentID" db:"judgment_id"`
 	Word               string  `json:"word" db:"word"`
-	NormalForm         string  `json:"normalWord" db:"normal_word"`
+	NormalForm         string  `json:"normalForm" db:"normal_form"`
 	Score              float64 `json:"score" db:"score"`
 	PositionInSentence int     `json:"positionInSentence" db:"position_in_sentence"`
 	Tag                Tag     `json:"tag" db:"tag" gorm:"embedded;embeddedPrefix:tag_"`
@@ -40,17 +40,23 @@ type Part struct {
 	Word     *Form
 }
 
-func (s *Sentence) SplitSentence() []*Part {
+func (s Sentence) SplitSentence() []*Part {
 	var (
 		parts []*Part
 		id    = 0
 	)
 	for i := 0; uint(i) < s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
+			var words []Form
+			for _, word := range s.Words[i:j] {
+				w := word
+				w.Tag = word.Tag
+				words = append(words, w)
+			}
 			parts = append(parts, &Part{Sentence{
 				ID:        uint(id),
 				CountWord: uint(id),
-				Words:     s.Words[i:j],
+				Words:     words,
 			}, nil})
 			id++
 		}
@@ -60,5 +66,5 @@ func (s *Sentence) SplitSentence() []*Part {
 
 func (f *Form) ToNomn() { // скорее всего это не все
 	f.Word = f.NormalForm
-	*f.Tag.POS = morph.CaseNomn
+	*f.Tag.Case = morph.CaseNomn
 }

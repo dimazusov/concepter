@@ -20,18 +20,30 @@ func TestNewConcepterAction(t *testing.T) {
 	// givenSentence    перемести - глагол в повелительном наклонении
 
 	partSentence := getSentence("глагол в повелительном наклонении")
+	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
+
+	parts := fullSentence.SplitSentence()
+	findCases(parts) // 1
+	parts = removeUnnecessary(parts)
+	require.NotNil(t, parts)
+	toNomn(parts) // 2
+
 	rep := NewMockRepository(ctrl)
+	for _, part := range parts {
+		rep.EXPECT().
+			GetByTemplate(context.Background(), part.Sentence).
+			AnyTimes()
+	}
 	rep.EXPECT().
 		GetByTemplate(context.Background(), partSentence).
 		AnyTimes().
 		Return([]sentence.Sentence{partSentence}, nil)
 
-	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
 	c := NewConcepterAction(rep)
 	givenSentence, err := c.Handle(context.Background(), &fullSentence)
 	require.Nil(t, err)
 
-	expectedSentence := getSentence("необходимо выполнить команду для перемещения")
+	expectedSentence := []sentence.Sentence{getSentence("необходимо выполнить команду для перемещения")}
 	require.Equal(t, true, reflect.DeepEqual(givenSentence, expectedSentence))
 }
 
