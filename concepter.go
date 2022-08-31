@@ -8,7 +8,7 @@ import (
 )
 
 type Repository interface {
-	GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Sentence, error)
+	GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Template, error)
 }
 
 type MorphClient interface {
@@ -16,11 +16,6 @@ type MorphClient interface {
 	Inflect(ctx context.Context, word sentence.Form, wordCase []string)
 	// Изменения части речи // pos - part of speach
 	ChangePOS(ctx context.Context, word sentence.Form, pos string)
-}
-
-type template struct {
-	part     *sentence.Part
-	sentence []sentence.Sentence
 }
 
 type concepter struct {
@@ -38,12 +33,12 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if parts == nil {
 		return nil, errors.New("the sentence does not contain any nouns")
 	}
-	toNomn(parts)                               // 2
-	template, err := m.findTemplate(ctx, parts) // 3
+	NounsToNomn(parts)                                // 2
+	template, part, err := m.findTemplate(ctx, parts) // 3
 	if err != nil {
 		return nil, err
 	}
-	_ = template
+	_, _ = template, part
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -76,26 +71,17 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return nil, nil
 }
 
-func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*template, error) { // неверно
-	defer func() {
-		if r := recover(); r != nil {
-			parts = parts[1:]
+func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) ([]sentence.Template, *sentence.Part, error) { // неверно
+	for _, part := range parts {
+		s, err := m.rep.GetByTemplate(ctx, part.Sentence)
+		if s != nil {
+			return s, &(*part), err
 		}
-	}()
-	if len(parts) == 1 {
-		return &template{
-			part:     parts[0],
-			sentence: []sentence.Sentence{parts[0].Sentence},
-		}, nil
 	}
-	s, err := m.rep.GetByTemplate(ctx, parts[0].Sentence)
-	return &template{
-		part:     parts[0],
-		sentence: s,
-	}, err
+	return nil, nil, nil
 }
 
-func toNomn(parts []*sentence.Part) {
+func NounsToNomn(parts []*sentence.Part) {
 	for _, part := range parts {
 		for n, word := range part.Sentence.Words {
 			if word.Word == part.Word.Word { // возможно неверно

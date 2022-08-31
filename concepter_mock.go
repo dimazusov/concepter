@@ -36,10 +36,10 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // GetByTemplate mocks base method.
-func (m *MockRepository) GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Sentence, error) {
+func (m *MockRepository) GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Template, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByTemplate", ctx, j)
-	ret0, _ := ret[0].([]sentence.Sentence)
+	ret0, _ := ret[0].([]sentence.Template)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
