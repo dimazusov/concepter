@@ -31,14 +31,18 @@ func TestNewConcepterAction(t *testing.T) {
 
 	rep := NewMockRepository(ctrl)
 	for _, part := range parts {
-		rep.EXPECT().
-			GetByTemplate(context.Background(), part.Sentence).
-			AnyTimes()
+		if part.Sentence.Sentence() == partSentence.S.Sentence() {
+			rep.EXPECT().
+				GetByTemplate(context.Background(), partSentence.S).
+				AnyTimes().
+				Return([]sentence.Template{findSentence}, nil)
+		} else {
+			rep.EXPECT().
+				GetByTemplate(context.Background(), part.Sentence).
+				AnyTimes().
+				Return(nil, nil)
+		}
 	}
-	rep.EXPECT().
-		GetByTemplate(context.Background(), partSentence.S).
-		AnyTimes().
-		Return([]sentence.Template{findSentence}, nil)
 
 	c := NewConcepterAction(rep)
 	givenSentence, err := c.Handle(context.Background(), &fullSentence.S)
@@ -59,7 +63,7 @@ func getSentence(str string) sentence.Template {
 		"words": [{
 			"word": "глагол",
 			"normalForm": "глагол",
-			"score": 0.75,
+			"score": 1.0,
 			"positionInSentence": 0,
 			"tag": {
 				"pos": "NOUN",
@@ -104,7 +108,7 @@ func getSentence(str string) sentence.Template {
 				"animacy": "",
 				"aspect": "",
 				"case": "loct",
-				"gender": "masc",
+				"gender": "neut",
 				"involvement": "",
 				"mood": "",
 				"number": "sing",

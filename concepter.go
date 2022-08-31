@@ -38,7 +38,11 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if err != nil {
 		return nil, err
 	}
-	_, _ = template, part
+	if template == nil {
+		return nil, errors.New("template not found")
+	}
+	word := template[0]
+	_, _ = part, word
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -74,6 +78,8 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) ([]sentence.Template, *sentence.Part, error) { // неверно
 	for _, part := range parts {
 		s, err := m.rep.GetByTemplate(ctx, part.Sentence)
+		sen := part.Sentence.Sentence()
+		_ = sen
 		if s != nil {
 			return s, &(*part), err
 		}
