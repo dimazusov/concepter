@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"github.com/pkg/errors"
 	"log"
+	"optimization/internal/pkg/morph"
 	"reflect"
 	"testing"
 
@@ -24,15 +25,20 @@ func TestNewConcepterAction(t *testing.T) {
 	findSentence := getSentence("перемести глагол в повелительном наклонении")
 	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
 
-	parts := SplitSentence(fullSentence)
-	findCases(parts) // 1
-	parts = removeWithoutNouns(parts)
+	parts := splitSentence(fullSentence)
+	for _, part := range parts { // 1
+		part.Case = getFirstNounCase(part)
+	}
+	parts = filterNounless(parts)
 	require.NotNil(t, parts)
-	NounsToNomn(parts) // 2
+	for i, part := range parts { // 2
+		part := changeFirstNoun(*part, morph.CaseNomn)
+		parts[i] = part
+	}
 
 	rep := NewMockRepository(ctrl)
 	client := NewMockMorphClient(ctrl)
-	for _, part := range parts {
+	for n, part := range parts {
 		if part.Sentence.Sentence() == partSentence.Sentence() {
 			rep.EXPECT().
 				GetByTemplate(context.Background(), partSentence).
@@ -43,10 +49,15 @@ func TestNewConcepterAction(t *testing.T) {
 			client.EXPECT().
 				Inflect(context.Background(), findSentence.Words[0], "gent")
 		} else {
+			sent := sentence.Sentence{
+				ID:        uint(n),
+				CountWord: uint(n),
+				Words:     nil,
+			}
 			rep.EXPECT().
 				GetByTemplate(context.Background(), part.Sentence).
 				AnyTimes().
-				Return(&part.Sentence, errors.New(""))
+				Return(&sent, errors.New(""))
 		}
 	}
 
@@ -68,7 +79,7 @@ func TestNewConcepterAction(t *testing.T) {
 //	findSentence := getSentence("перемести глагол в повелительном наклонении")
 //	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
 //
-//	parts := SplitSentence(fullSentence)
+//	parts := splitSentence(fullSentence)
 //	findCases(parts) // 1
 //	parts = removeWithoutNouns(parts)
 //	require.NotNil(t, parts)

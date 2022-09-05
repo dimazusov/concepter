@@ -11,6 +11,8 @@ type Repository interface {
 	GetByTemplate(ctx context.Context, j sentence.Sentence) (*sentence.Sentence, error)
 }
 
+// template left true
+
 type MorphClient interface {
 	// Склонение
 	Inflect(ctx context.Context, word sentence.Form, wordCase string) (sentence.Form, error)
@@ -28,13 +30,21 @@ func NewConcepterAction(rep Repository, client MorphClient) *concepter {
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
-	parts := SplitSentence(*s)
-	findCases(parts) // 1
-	parts = removeWithoutNouns(parts)
+	parts := splitSentence(*s)
+	for _, part := range parts { // 1
+		caseWord := getFirstNounCase(part)
+		if caseWord != nil {
+			part.Case = caseWord
+		}
+	}
+	parts = filterNounless(parts)
 	if parts == nil {
 		return nil, errors.New("the sentence does not contain any nouns")
 	}
-	NounsToNomn(parts)                            // 2
+	for i, part := range parts { // 2
+		part := changeFirstNoun(*part, morph.CaseNomn)
+		parts[i] = part
+	}
 	sent, part, err := m.findTemplate(ctx, parts) // 3
 	if err != nil {
 		return nil, err
@@ -77,15 +87,15 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return nil, nil
 }
 
-func SplitSentence(s sentence.Sentence) []*sentence.Part {
+func splitSentence(s sentence.Sentence) []*sentence.Part {
 	var parts []*sentence.Part
 	for i := 0; uint(i) < s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
-			var words []sentence.Form
-			for _, word := range s.Words[i:j] {
+			words := make([]sentence.Form, j-i)
+			for idx, word := range s.Words[i:j] { // фабричный метод?
 				w := word
 				w.Tag = word.Tag
-				words = append(words, w)
+				words[idx] = w
 			}
 			sent := sentence.Sentence{
 				ID:        s.ID,
@@ -102,53 +112,48 @@ func SplitSentence(s sentence.Sentence) []*sentence.Part {
 func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*sentence.Sentence, *sentence.Part, error) {
 	for _, part := range parts {
 		s, err := m.rep.GetByTemplate(ctx, part.Sentence)
-		if s != nil {
+		if s != nil && s.Words != nil {
 			return s, part, err
 		}
 	}
 	return nil, nil, errors.New("template not found")
 }
 
-func NounsToNomn(parts []*sentence.Part) {
-	for _, part := range parts {
-		NounToNomn(part)
-	}
-}
-
-func NounToNomn(part *sentence.Part) {
+func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
 	for n, word := range part.Sentence.Words {
 		if word.Tag.Case == part.Case {
-			form := &part.Sentence.Words[n]
-			changeCase(form, morph.CaseNomn)
+			form := part.Sentence.Words[n]
+			form = changeCase(form, wordCase)
+			part.Sentence.Words[n] = form
+			return &part
 		}
 	}
+	return &part
 }
 
-func changeCase(form *sentence.Form, wordCase string) {
+func changeCase(form sentence.Form, wordCase string) sentence.Form {
 	form.Word = form.NormalForm
 	*form.Tag.Case = wordCase
+	return form
 }
 
-func findCases(parts []*sentence.Part) {
-	for _, part := range parts {
-		findCase(part)
-	}
-}
-
-func findCase(part *sentence.Part) {
+func getFirstNounCase(part *sentence.Part) *string {
 	for _, word := range part.Sentence.Words {
 		if isNoun(word) {
-			(*part).Case = word.Tag.Case
-			break
+			return word.Tag.Case
 		}
 	}
+	return nil
 }
 
 func isNoun(word sentence.Form) bool {
+	if word.Tag.POS == nil {
+		return false
+	}
 	return *word.Tag.POS == morph.PartOfSpeachNOUN
 }
 
-func removeWithoutNouns(parts []*sentence.Part) []*sentence.Part {
+func filterNounless(parts []*sentence.Part) []*sentence.Part {
 	var result []*sentence.Part
 	for _, part := range parts {
 		if part.Case != nil {
