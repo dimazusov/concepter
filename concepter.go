@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/pkg/errors"
 	"optimization/internal/pkg/morph"
 	"optimization/internal/pkg/sentence"
 )
 
 type Repository interface {
-	GetByTemplate(ctx context.Context, j sentence.Sentence) (*sentence.Sentence, error)
+	GetByTemplate(ctx context.Context, j sentence.Template) (*sentence.Sentence, error)
 }
-
-// template left true
 
 type MorphClient interface {
 	// Склонение
@@ -31,10 +30,10 @@ func NewConcepterAction(rep Repository, client MorphClient) *concepter {
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
 	parts := splitSentence(*s)
-	for _, part := range parts { // 1
-		caseWord := getFirstNounCase(part)
-		if caseWord != nil {
-			part.Case = caseWord
+	for i, part := range parts { // 1
+		newPart := getFirstNounCase(*part)
+		if newPart != nil && newPart.Case != nil {
+			parts[i] = newPart
 		}
 	}
 	parts = filterNounless(parts)
@@ -42,8 +41,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 		return nil, errors.New("the sentence does not contain any nouns")
 	}
 	for i, part := range parts { // 2
-		part := changeFirstNoun(*part, morph.CaseNomn)
-		parts[i] = part
+		parts[i] = changeFirstNoun(*part, morph.CaseNomn)
 	}
 	sent, part, err := m.findTemplate(ctx, parts) // 3
 	if err != nil {
@@ -111,7 +109,15 @@ func splitSentence(s sentence.Sentence) []*sentence.Part {
 
 func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*sentence.Sentence, *sentence.Part, error) {
 	for _, part := range parts {
-		s, err := m.rep.GetByTemplate(ctx, part.Sentence)
+		sent := make(map[string]sentence.Sentence)
+		fmt.Println(part.Sentence.Sentence())
+		sent[part.Sentence.Sentence()] = part.Sentence
+		template := sentence.Template{
+			Sentence: sent,
+			Left:     true,
+			Right:    false,
+		}
+		s, err := m.rep.GetByTemplate(ctx, template)
 		if s != nil && s.Words != nil {
 			return s, part, err
 		}
@@ -137,10 +143,11 @@ func changeCase(form sentence.Form, wordCase string) sentence.Form {
 	return form
 }
 
-func getFirstNounCase(part *sentence.Part) *string {
+func getFirstNounCase(part sentence.Part) *sentence.Part {
 	for _, word := range part.Sentence.Words {
 		if isNoun(word) {
-			return word.Tag.Case
+			part.Case = word.Tag.Case // должно меняться все слово, а не только падеж
+			return &part
 		}
 	}
 	return nil

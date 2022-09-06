@@ -7,6 +7,7 @@ import (
 	"log"
 	"optimization/internal/pkg/morph"
 	"reflect"
+	"strconv"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -21,19 +22,27 @@ func TestNewConcepterAction(t *testing.T) {
 
 	// givenSentence    перемести - глагол в повелительном наклонении
 
-	partSentence := getSentence("глагол в повелительном наклонении")
-	findSentence := getSentence("перемести глагол в повелительном наклонении")
-	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
+	partStr := "глагол в повелительном наклонении"
+	fullStr := "необходимо выполнить команду для глагола в повелительном наклонении"
+	findStr := "перемести глагол в повелительном наклонении"
+	expectedStr := "необходимо выполнить команду для перемещения"
+
+	partSentence := getSentence(partStr).Sentence[partStr]
+	fullSentence := getSentence(fullStr).Sentence[fullStr]
+	findTemplate := getSentence(findStr)
+	findSentence := findTemplate.Sentence[findStr]
 
 	parts := splitSentence(fullSentence)
-	for _, part := range parts { // 1
-		part.Case = getFirstNounCase(part)
+	for i, part := range parts { // 1
+		newPart := getFirstNounCase(*part)
+		if newPart != nil && newPart.Case != nil {
+			parts[i] = newPart
+		}
 	}
 	parts = filterNounless(parts)
 	require.NotNil(t, parts)
 	for i, part := range parts { // 2
-		part := changeFirstNoun(*part, morph.CaseNomn)
-		parts[i] = part
+		parts[i] = changeFirstNoun(*part, morph.CaseNomn)
 	}
 
 	rep := NewMockRepository(ctrl)
@@ -57,7 +66,7 @@ func TestNewConcepterAction(t *testing.T) {
 			rep.EXPECT().
 				GetByTemplate(context.Background(), part.Sentence).
 				AnyTimes().
-				Return(&sent, errors.New(""))
+				Return(&sent, errors.New(strconv.Itoa(n)))
 		}
 	}
 
@@ -65,507 +74,387 @@ func TestNewConcepterAction(t *testing.T) {
 	givenSentence, err := c.Handle(context.Background(), &fullSentence)
 	require.Nil(t, err)
 
-	expectedSentence := []sentence.Sentence{getSentence("необходимо выполнить команду для перемещения")}
+	expectedSentence := []sentence.Sentence{getSentence(expectedStr).
+		Sentence[expectedStr]}
 	require.Equal(t, true, reflect.DeepEqual(givenSentence, expectedSentence))
 }
 
-//func TestNewConcepterAction(t *testing.T) {
-//	ctrl := gomock.NewController(t)
-//	defer ctrl.Finish()
-//
-//	// givenSentence    перемести - глагол в повелительном наклонении
-//
-//	partSentence := getSentence("глагол в повелительном наклонении")
-//	findSentence := getSentence("перемести глагол в повелительном наклонении")
-//	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
-//
-//	parts := splitSentence(fullSentence)
-//	findCases(parts) // 1
-//	parts = removeWithoutNouns(parts)
-//	require.NotNil(t, parts)
-//	NounsToNomn(parts) // 2
-//
-//	rep := NewMockRepository(ctrl)
-//	client := NewMockMorphClient(ctrl)
-//
-//	rep.EXPECT().
-//		GetByTemplate(context.Background(), partSentence).
-//		AnyTimes().
-//		Return(&findSentence, nil)
-//	client.EXPECT().
-//		ChangePOS(context.Background(), findSentence.Words[0], "NOUN")
-//	client.EXPECT().
-//		Inflect(context.Background(), findSentence.Words[0], "gent")
-//
-//	c := NewConcepterAction(rep, client)
-//	sent, _ := rep.GetByTemplate(context.Background(), partSentence)
-//	Case := "gent"
-//	part := sentence.Part{
-//		Sentence: partSentence,
-//		Case:     &Case,
-//	}
-//	c.client.ChangePOS(context.Background(), sent.Words[0], "NOUN") // 4
-//	c.client.Inflect(context.Background(), sent.Words[0], *part.Case)
-//	_ = part
-//}
-
-func getSentence(str string) sentence.Sentence {
+func getSentence(str string) sentence.Template {
 	m := make(map[string]string)
+	// partStr
 	m["глагол в повелительном наклонении"] = `{
-	"id": 0,
-	"count_words": 4,
-	"words": [{
-		"word": "глагол",
-		"normalForm": "глагол",
-		"score": 1.0,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "NOUN",
-			"animacy": "inan",
-			"aspect": "",
-			"case": "nomn",
-			"gender": "masc",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
+	"left": false,
+	"right": false,
+	"sent": {
+		"глагол в повелительном наклонении": {
+			"id": 0,
+			"count_words": 4,
+			"words": [{
+				"word": "глагол",
+				"normalForm": "глагол",
+				"score": 1.0,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "NOUN",
+					"animacy": "inan",
+					"aspect": "",
+					"case": "nomn",
+					"gender": "masc",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			}, {
+				"word": "в",
+				"normalForm": "в",
+				"score": 0.999327,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "PREP",
+					"animacy": "",
+					"aspect": "",
+					"case": "",
+					"gender": "",
+					"involvement": "",
+					"mood": "",
+					"number": "",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			}, {
+				"word": "повелительном",
+				"normalForm": "повелительный",
+				"score": 0.5,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "ADJF",
+					"animacy": "",
+					"aspect": "",
+					"case": "loct",
+					"gender": "neut",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			}, {
+				"word": "наклонении",
+				"normalForm": "наклонение",
+				"score": 1.0,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "NOUN",
+					"animacy": "inan",
+					"aspect": "",
+					"case": "loct",
+					"gender": "neut",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			}]
 		}
-	}, {
-		"word": "в",
-		"normalForm": "в",
-		"score": 0.999327,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "PREP",
-			"animacy": "",
-			"aspect": "",
-			"case": "",
-			"gender": "",
-			"involvement": "",
-			"mood": "",
-			"number": "",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}, {
-		"word": "повелительном",
-		"normalForm": "повелительный",
-		"score": 0.5,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "ADJF",
-			"animacy": "",
-			"aspect": "",
-			"case": "loct",
-			"gender": "neut",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}, {
-		"word": "наклонении",
-		"normalForm": "наклонение",
-		"score": 1.0,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "NOUN",
-			"animacy": "inan",
-			"aspect": "",
-			"case": "loct",
-			"gender": "neut",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}]
+	}
 }`
-	m["перемести глагол в повелительном наклонении"] = `{
-	"id": 0,
-	"count_words": 4,
-	"words": [{
-		"id": 0,
-		"count_words": 1,
-		"words": {
-			"word": "перемести",
-			"normalForm": "переместить",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "VERB",
-				"animacy": "",
-				"aspect": "perf",
-				"case": "",
-				"gender": "",
-				"involvement": "excl",
-				"mood": "impr",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "tran",
-				"voice": ""
-			}
-		}
-	}, {
-		"word": "глагол",
-		"normalForm": "глагол",
-		"score": 0.75,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "NOUN",
-			"animacy": "inan",
-			"aspect": "",
-			"case": "nomn",
-			"gender": "masc",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}, {
-		"word": "в",
-		"normalForm": "в",
-		"score": 0.999327,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "PREP",
-			"animacy": "",
-			"aspect": "",
-			"case": "",
-			"gender": "",
-			"involvement": "",
-			"mood": "",
-			"number": "",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}, {
-		"word": "повелительном",
-		"normalForm": "повелительный",
-		"score": 0.5,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "ADJF",
-			"animacy": "",
-			"aspect": "",
-			"case": "loct",
-			"gender": "masc",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}, {
-		"word": "наклонении",
-		"normalForm": "наклонение",
-		"score": 1.0,
-		"positionInSentence": 0,
-		"tag": {
-			"pos": "NOUN",
-			"animacy": "inan",
-			"aspect": "",
-			"case": "loct",
-			"gender": "neut",
-			"involvement": "",
-			"mood": "",
-			"number": "sing",
-			"person": "",
-			"tense": "",
-			"transitivity": "",
-			"voice": ""
-		}
-	}]
-}`
+	// findStr
+	m["перемести глагол в повелительном наклонении"] = ``
+	// fullStr
 	m["необходимо выполнить команду для глагола в повелительном наклонении"] = `{
-	"id": 0,
-	"count_words": 8,
-	"words": [{
-			"word": "необходимо",
-			"normalForm": "необходимо",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PRED",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "pres",
-				"transitivity": "",
-				"voice": ""
-			}
-		}, {
-			"word": "выполнить",
-			"normalForm": "выполнить",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "INFN",
-				"animacy": "",
-				"aspect": "perf",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "tran",
-				"voice": ""
-			}
-		},
-		{
-			"word": "команду",
-			"normalForm": "команда",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "accs",
-				"gender": "femn",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "для",
-			"normalForm": "для",
-			"score": 0.999843,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PREP",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "глагола",
-			"normalForm": "глагол",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "gent",
-				"gender": "masc",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "в",
-			"normalForm": "в",
-			"score": 0.999327,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PREP",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "повелительном",
-			"normalForm": "повелительный",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "ADJF",
-				"animacy": "",
-				"aspect": "",
-				"case": "loct",
-				"gender": "neut",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "наклонении",
-			"normalForm": "наклонение",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "loct",
-				"gender": "neut",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
+	"left": false,
+	"right": false,
+	"sent": {
+		"необходимо выполнить команду для глагола в повелительном наклонении": {
+			"id": 0,
+			"count_words": 8,
+			"words": [{
+					"word": "необходимо",
+					"normalForm": "необходимо",
+					"score": 0.5,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "PRED",
+						"animacy": "",
+						"aspect": "",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "pres",
+						"transitivity": "",
+						"voice": ""
+					}
+				}, {
+					"word": "выполнить",
+					"normalForm": "выполнить",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "INFN",
+						"animacy": "",
+						"aspect": "perf",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "",
+						"transitivity": "tran",
+						"voice": ""
+					}
+				},
+				{
+					"word": "команду",
+					"normalForm": "команда",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "NOUN",
+						"animacy": "inan",
+						"aspect": "",
+						"case": "accs",
+						"gender": "femn",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "для",
+					"normalForm": "для",
+					"score": 0.999843,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "PREP",
+						"animacy": "",
+						"aspect": "",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "глагола",
+					"normalForm": "глагол",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "NOUN",
+						"animacy": "inan",
+						"aspect": "",
+						"case": "gent",
+						"gender": "masc",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "в",
+					"normalForm": "в",
+					"score": 0.999327,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "PREP",
+						"animacy": "",
+						"aspect": "",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "повелительном",
+					"normalForm": "повелительный",
+					"score": 0.5,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "ADJF",
+						"animacy": "",
+						"aspect": "",
+						"case": "loct",
+						"gender": "neut",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "наклонении",
+					"normalForm": "наклонение",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "NOUN",
+						"animacy": "inan",
+						"aspect": "",
+						"case": "loct",
+						"gender": "neut",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				}
+			]
 		}
-	]
+	}
 }`
+	// expectedStr
 	m["необходимо выполнить команду для перемещения"] = `{
-	"id": 0,
-	"count_words": 5,
-	"words": [{
-			"word": "необходимо",
-			"normalForm": "необходимо",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PRED",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "pres",
-				"transitivity": "",
-				"voice": ""
-			}
-		}, {
-			"word": "выполнить",
-			"normalForm": "выполнить",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "INFN",
-				"animacy": "",
-				"aspect": "perf",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "tran",
-				"voice": ""
-			}
-		},
-		{
-			"word": "команду",
-			"normalForm": "команда",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "accs",
-				"gender": "femn",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "для",
-			"normalForm": "для",
-			"score": 0.999843,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PREP",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		},
-		{
-			"word": "перемещения",
-			"normalForm": "перемещение",
-			"score": 0.878787,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "gent",
-				"gender": "neut",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
+	"left": false,
+	"right": false,
+	"sent": {
+		"необходимо выполнить команду для перемещения": {
+			"id": 0,
+			"count_words": 5,
+			"words": [{
+					"word": "необходимо",
+					"normalForm": "необходимо",
+					"score": 0.5,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "PRED",
+						"animacy": "",
+						"aspect": "",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "pres",
+						"transitivity": "",
+						"voice": ""
+					}
+				}, {
+					"word": "выполнить",
+					"normalForm": "выполнить",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "INFN",
+						"animacy": "",
+						"aspect": "perf",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "",
+						"transitivity": "tran",
+						"voice": ""
+					}
+				},
+				{
+					"word": "команду",
+					"normalForm": "команда",
+					"score": 1.0,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "NOUN",
+						"animacy": "inan",
+						"aspect": "",
+						"case": "accs",
+						"gender": "femn",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "для",
+					"normalForm": "для",
+					"score": 0.999843,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "PREP",
+						"animacy": "",
+						"aspect": "",
+						"case": "",
+						"gender": "",
+						"involvement": "",
+						"mood": "",
+						"number": "",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				},
+				{
+					"word": "перемещения",
+					"normalForm": "перемещение",
+					"score": 0.878787,
+					"positionInSentence": 0,
+					"tag": {
+						"pos": "NOUN",
+						"animacy": "inan",
+						"aspect": "",
+						"case": "gent",
+						"gender": "neut",
+						"involvement": "",
+						"mood": "",
+						"number": "sing",
+						"person": "",
+						"tense": "",
+						"transitivity": "",
+						"voice": ""
+					}
+				}
+			]
 		}
-	]
+	}
 }`
 
-	t := sentence.Sentence{}
+	t := sentence.Template{}
 	err := json.Unmarshal([]byte(m[str]), &t)
 	if err != nil {
 		log.Fatalln(err)

@@ -43,3 +43,9 @@ type Part struct {
 	Sentence Sentence
 	Case     *string
 }
+
+type Template struct {
+	Sentence map[string]Sentence `json:"sent" db:"sent"`
+	Left     bool
+	Right    bool
+}
