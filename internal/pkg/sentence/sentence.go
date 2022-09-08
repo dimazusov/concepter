@@ -45,7 +45,7 @@ type Part struct {
 }
 
 type Template struct {
-	Sentence map[string]Sentence `json:"sent" db:"sent"`
-	Left     bool
-	Right    bool
+	Sentence Sentence `json:"sentence" db:"sentence"`
+	Left     bool     `json:"left" db:"left"`
+	Right    bool     `json:"right" db:"right"`
 }

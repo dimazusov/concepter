@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"github.com/pkg/errors"
 	"optimization/internal/pkg/morph"
 	"optimization/internal/pkg/sentence"
@@ -87,7 +86,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 
 func splitSentence(s sentence.Sentence) []*sentence.Part {
 	var parts []*sentence.Part
-	for i := 0; uint(i) < s.CountWord; i++ {
+	for i := 0; uint(i) <= s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
 			words := make([]sentence.Form, j-i)
 			for idx, word := range s.Words[i:j] { // фабричный метод?
@@ -109,11 +108,8 @@ func splitSentence(s sentence.Sentence) []*sentence.Part {
 
 func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*sentence.Sentence, *sentence.Part, error) {
 	for _, part := range parts {
-		sent := make(map[string]sentence.Sentence)
-		fmt.Println(part.Sentence.Sentence())
-		sent[part.Sentence.Sentence()] = part.Sentence
 		template := sentence.Template{
-			Sentence: sent,
+			Sentence: part.Sentence,
 			Left:     true,
 			Right:    false,
 		}
