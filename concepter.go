@@ -50,8 +50,11 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if err != nil {
 		return nil, err
 	}
-	m.client.Inflect(ctx, sent.Words[0], *part.Case)
-	_ = part
+	replacement, err := m.client.Inflect(ctx, sent.Words[0], *part.Case) // 5
+	if err != nil {
+		return nil, err
+	}
+	_ = replacement
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -81,10 +84,56 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//->
 	//необходимо выполнить команду для перемещения
 
-	return nil, nil
+	return []sentence.Sentence{part.Sentence}, nil
 }
 
-func splitSentence(s sentence.Sentence) []*sentence.Part {
+func deepCopy(sent sentence.Sentence) sentence.Sentence {
+	newSentence := sentence.Sentence{
+		ID:        sent.ID,
+		CountWord: sent.CountWord,
+	}
+	newWords := make([]sentence.Form, len(sent.Words))
+	for i, word := range sent.Words {
+		tag := word.Tag
+		newTag := sentence.Tag{
+			POS:          checkAndCopy(tag.POS),
+			Animacy:      checkAndCopy(tag.Animacy),
+			Aspect:       checkAndCopy(tag.Aspect),
+			Case:         checkAndCopy(tag.Case),
+			Gender:       checkAndCopy(tag.Gender),
+			Involvment:   checkAndCopy(tag.Involvment),
+			Mood:         checkAndCopy(tag.Mood),
+			Number:       checkAndCopy(tag.Number),
+			Person:       checkAndCopy(tag.Person),
+			Tense:        checkAndCopy(tag.Tense),
+			Transitivity: checkAndCopy(tag.Transitivity),
+			Voice:        checkAndCopy(tag.Voice),
+		}
+		newForm := sentence.Form{
+			ID:                 word.ID,
+			JudgmentID:         word.JudgmentID,
+			Word:               word.Word,
+			NormalForm:         word.NormalForm,
+			Score:              word.Score,
+			PositionInSentence: word.PositionInSentence,
+			Tag:                newTag,
+		}
+		newWords[i] = newForm
+	}
+	newSentence.Words = newWords
+	return newSentence
+}
+
+func checkAndCopy(str *string) *string {
+	if str != nil {
+		s := *str
+		return &s
+	}
+	return nil
+}
+
+func splitSentence(sent sentence.Sentence) []*sentence.Part {
+	s := deepCopy(sent)
 	var parts []*sentence.Part
 	for i := 0; uint(i) <= s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
@@ -122,12 +171,17 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*s
 }
 
 func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
+	newSentence := deepCopy(part.Sentence)
+	newPart := sentence.Part{
+		Sentence: newSentence,
+		Case:     checkAndCopy(part.Case),
+	}
 	for n, word := range part.Sentence.Words {
 		if word.Tag.Case == part.Case {
-			form := part.Sentence.Words[n]
+			form := newPart.Sentence.Words[n]
 			form = changeCase(form, wordCase)
-			part.Sentence.Words[n] = form
-			return &part
+			newPart.Sentence.Words[n] = form
+			return &newPart
 		}
 	}
 	return &part

@@ -25,10 +25,9 @@ func TestNewConcepterAction(t *testing.T) {
 	expectedSentence := getSentence("необходимо выполнить команду для перемещения")
 	findTemplate := getSentence("перемести глагол в повелительном наклонении")
 	findSentence := findTemplate.Sentence
-	replace := getReplace()
+	replacement := getReplace()
 
 	parts := splitSentence(fullSentence.Sentence)
-	parts = deepCopy(parts)
 	for i, part := range parts { // 1
 		newPart := getFirstNounCase(*part)
 		if newPart != nil && newPart.Case != nil {
@@ -51,9 +50,9 @@ func TestNewConcepterAction(t *testing.T) {
 				Return(&findSentence, nil)
 			client.EXPECT().
 				ChangePOS(context.Background(), findSentence.Words[0], "NOUN").
-				Return(replace, nil)
+				Return(replacement, nil)
 			client.EXPECT().
-				Inflect(context.Background(), replace, "gent").
+				Inflect(context.Background(), replacement, "gent").
 				Return(expectedSentence.Sentence.Words[4], nil)
 		} else {
 			sent := sentence.Sentence{
@@ -79,59 +78,6 @@ func TestNewConcepterAction(t *testing.T) {
 	require.Equal(t, true, reflect.DeepEqual(givenSentence, []sentence.Sentence{expectedSentence.Sentence}))
 }
 
-func deepCopy(parts []*sentence.Part) []*sentence.Part {
-	newParts := make([]*sentence.Part, len(parts))
-	for i, part := range parts {
-		sent := part.Sentence
-		newWords := make([]sentence.Form, len(sent.Words))
-		for i, word := range sent.Words {
-			tag := word.Tag
-			newTag := sentence.Tag{
-				POS:          check(tag.POS),
-				Animacy:      check(tag.Animacy),
-				Aspect:       check(tag.Aspect),
-				Case:         check(tag.Case),
-				Gender:       check(tag.Gender),
-				Involvment:   check(tag.Involvment),
-				Mood:         check(tag.Mood),
-				Number:       check(tag.Number),
-				Person:       check(tag.Person),
-				Tense:        check(tag.Tense),
-				Transitivity: check(tag.Transitivity),
-				Voice:        check(tag.Voice),
-			}
-			newForm := sentence.Form{
-				ID:                 word.ID,
-				JudgmentID:         word.JudgmentID,
-				Word:               word.Word,
-				NormalForm:         word.NormalForm,
-				Score:              word.Score,
-				PositionInSentence: word.PositionInSentence,
-				Tag:                newTag,
-			}
-			newWords[i] = newForm
-		}
-		newSent := sentence.Sentence{
-			ID:        sent.ID,
-			CountWord: sent.CountWord,
-			Words:     newWords,
-		}
-		newPart := sentence.Part{
-			Sentence: newSent,
-			Case:     check(part.Case),
-		}
-		newParts[i] = &newPart
-	}
-	return newParts
-}
-
-func check(str *string) *string {
-	if str != nil {
-		return &(*str)
-	}
-	return nil
-}
-
 func getReplace() sentence.Form {
 	str := `{
     "word": "перемещение",
@@ -142,7 +88,7 @@ func getReplace() sentence.Form {
       "pos": "NOUN",
       "animacy": "inan",
       "aspect": "",
-      "case": "nomn",
+      "case": "gent",
       "gender": "neut",
       "involvement": "",
       "mood": "",
@@ -515,7 +461,7 @@ func getSentence(str string) sentence.Template {
 					"pos": "NOUN",
 					"animacy": "inan",
 					"aspect": "",
-					"case": "loct",
+					"case": "nomn",
 					"gender": "neut",
 					"involvement": "",
 					"mood": "",
