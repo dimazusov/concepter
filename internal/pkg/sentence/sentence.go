@@ -39,9 +39,15 @@ type Tag struct {
 	Voice        *string `json:"voice" db:"voice"`
 }
 
+type Indexes struct {
+	I int
+	J int
+}
+
 type Part struct {
 	Sentence Sentence
 	Case     *string
+	Indexes  Indexes
 }
 
 type Template struct {

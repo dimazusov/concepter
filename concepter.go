@@ -55,6 +55,8 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 		return nil, err
 	}
 	_ = replacement
+	s.Words = append(s.Words[:part.Indexes.I], replacement)
+	s.CountWord = uint(len(s.Words))
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -84,7 +86,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//->
 	//необходимо выполнить команду для перемещения
 
-	return []sentence.Sentence{part.Sentence}, nil
+	return []sentence.Sentence{*s}, nil
 }
 
 func deepCopy(sent sentence.Sentence) sentence.Sentence {
@@ -148,7 +150,7 @@ func splitSentence(sent sentence.Sentence) []*sentence.Part {
 				CountWord: uint(len(words)),
 				Words:     words,
 			}
-			part := sentence.Part{Sentence: sent}
+			part := sentence.Part{Sentence: sent, Indexes: sentence.Indexes{I: i, J: j}}
 			parts = append(parts, &part)
 		}
 	}
@@ -175,6 +177,7 @@ func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
 	newPart := sentence.Part{
 		Sentence: newSentence,
 		Case:     checkAndCopy(part.Case),
+		Indexes:  part.Indexes,
 	}
 	for n, word := range part.Sentence.Words {
 		if word.Tag.Case == part.Case {
