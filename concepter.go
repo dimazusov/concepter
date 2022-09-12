@@ -8,41 +8,55 @@ import (
 )
 
 type Repository interface {
-	GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Template, error)
+	GetByTemplate(ctx context.Context, j sentence.Template) (*sentence.Sentence, error)
 }
 
 type MorphClient interface {
 	// Склонение
-	Inflect(ctx context.Context, word sentence.Form, wordCase []string)
+	Inflect(ctx context.Context, word sentence.Form, wordCase string) (sentence.Form, error)
 	// Изменения части речи // pos - part of speach
-	ChangePOS(ctx context.Context, word sentence.Form, pos string)
+	ChangePOS(ctx context.Context, word sentence.Form, pos string) (sentence.Form, error)
 }
 
 type concepter struct {
-	rep Repository
+	rep    Repository
+	client MorphClient
 }
 
-func NewConcepterAction(rep Repository) *concepter {
-	return &concepter{rep}
+func NewConcepterAction(rep Repository, client MorphClient) *concepter {
+	return &concepter{rep, client}
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
-	parts := s.SplitSentence()
-	findCases(parts) // 1
-	parts = removeUnnecessary(parts)
+	parts := splitSentence(*s)
+	for i, part := range parts { // 1
+		newPart := getFirstNounCase(*part)
+		if newPart != nil && newPart.Case != nil {
+			parts[i] = newPart
+		}
+	}
+	parts = filterNounless(parts)
 	if parts == nil {
 		return nil, errors.New("the sentence does not contain any nouns")
 	}
-	NounsToNomn(parts)                                // 2
-	template, part, err := m.findTemplate(ctx, parts) // 3
+	for i, part := range parts { // 2
+		parts[i] = changeFirstNoun(*part, morph.CaseNomn)
+	}
+	sent, part, err := m.findTemplate(ctx, parts) // 3
 	if err != nil {
 		return nil, err
 	}
-	if template == nil {
-		return nil, errors.New("template not found")
+	sent.Words[0], err = m.client.ChangePOS(ctx, sent.Words[0], "NOUN") // 4
+	if err != nil {
+		return nil, err
 	}
-	word := template[0]
-	_, _ = part, word
+	replacement, err := m.client.Inflect(ctx, sent.Words[0], *part.Case) // 5
+	if err != nil {
+		return nil, err
+	}
+	_ = replacement
+	s.Words = append(s.Words[:part.Indexes.I], replacement)
+	s.CountWord = uint(len(s.Words))
 
 	// TODO
 	//необходимо выполнить команду для глагола в повелительном наклонении
@@ -72,46 +86,137 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//->
 	//необходимо выполнить команду для перемещения
 
-	return nil, nil
+	return []sentence.Sentence{*s}, nil
 }
 
-func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) ([]sentence.Template, *sentence.Part, error) { // неверно
-	for _, part := range parts {
-		s, err := m.rep.GetByTemplate(ctx, part.Sentence)
-		sen := part.Sentence.Sentence()
-		_ = sen
-		if s != nil {
-			return s, &(*part), err
-		}
+func deepCopy(sent sentence.Sentence) sentence.Sentence {
+	newSentence := sentence.Sentence{
+		ID:        sent.ID,
+		CountWord: sent.CountWord,
 	}
-	return nil, nil, nil
+	newWords := make([]sentence.Form, len(sent.Words))
+	for i, word := range sent.Words {
+		tag := word.Tag
+		newTag := sentence.Tag{
+			POS:          checkAndCopy(tag.POS),
+			Animacy:      checkAndCopy(tag.Animacy),
+			Aspect:       checkAndCopy(tag.Aspect),
+			Case:         checkAndCopy(tag.Case),
+			Gender:       checkAndCopy(tag.Gender),
+			Involvment:   checkAndCopy(tag.Involvment),
+			Mood:         checkAndCopy(tag.Mood),
+			Number:       checkAndCopy(tag.Number),
+			Person:       checkAndCopy(tag.Person),
+			Tense:        checkAndCopy(tag.Tense),
+			Transitivity: checkAndCopy(tag.Transitivity),
+			Voice:        checkAndCopy(tag.Voice),
+		}
+		newForm := sentence.Form{
+			ID:                 word.ID,
+			JudgmentID:         word.JudgmentID,
+			Word:               word.Word,
+			NormalForm:         word.NormalForm,
+			Score:              word.Score,
+			PositionInSentence: word.PositionInSentence,
+			Tag:                newTag,
+		}
+		newWords[i] = newForm
+	}
+	newSentence.Words = newWords
+	return newSentence
 }
 
-func NounsToNomn(parts []*sentence.Part) {
-	for _, part := range parts {
-		for n, word := range part.Sentence.Words {
-			if word.Word == part.Word.Word { // возможно неверно
-				part.Sentence.Words[n].ToNomn()
+func checkAndCopy(str *string) *string {
+	if str != nil {
+		s := *str
+		return &s
+	}
+	return nil
+}
+
+func splitSentence(sent sentence.Sentence) []*sentence.Part {
+	s := deepCopy(sent)
+	var parts []*sentence.Part
+	for i := 0; uint(i) <= s.CountWord; i++ {
+		for j := i + 1; uint(j) <= s.CountWord; j++ {
+			words := make([]sentence.Form, j-i)
+			for idx, word := range s.Words[i:j] { // фабричный метод?
+				w := word
+				w.Tag = word.Tag
+				words[idx] = w
 			}
-		}
-	}
-}
-
-func findCases(parts []*sentence.Part) {
-	for _, part := range parts {
-		for _, word := range part.Sentence.Words {
-			if *word.Tag.POS == morph.PartOfSpeachNOUN {
-				(*part).Word = &word
-				break
+			sent := sentence.Sentence{
+				ID:        s.ID,
+				CountWord: uint(len(words)),
+				Words:     words,
 			}
+			part := sentence.Part{Sentence: sent, Indexes: sentence.Indexes{I: i, J: j}}
+			parts = append(parts, &part)
 		}
 	}
+	return parts
 }
 
-func removeUnnecessary(parts []*sentence.Part) []*sentence.Part {
+func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*sentence.Sentence, *sentence.Part, error) {
+	for _, part := range parts {
+		template := sentence.Template{
+			Sentence: part.Sentence,
+			Left:     true,
+			Right:    false,
+		}
+		s, err := m.rep.GetByTemplate(ctx, template)
+		if s != nil && s.Words != nil {
+			return s, part, err
+		}
+	}
+	return nil, nil, errors.New("template not found")
+}
+
+func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
+	newSentence := deepCopy(part.Sentence)
+	newPart := sentence.Part{
+		Sentence: newSentence,
+		Case:     checkAndCopy(part.Case),
+		Indexes:  part.Indexes,
+	}
+	for n, word := range part.Sentence.Words {
+		if word.Tag.Case == part.Case {
+			form := newPart.Sentence.Words[n]
+			form = changeCase(form, wordCase)
+			newPart.Sentence.Words[n] = form
+			return &newPart
+		}
+	}
+	return &part
+}
+
+func changeCase(form sentence.Form, wordCase string) sentence.Form {
+	form.Word = form.NormalForm
+	*form.Tag.Case = wordCase
+	return form
+}
+
+func getFirstNounCase(part sentence.Part) *sentence.Part {
+	for _, word := range part.Sentence.Words {
+		if isNoun(word) {
+			part.Case = word.Tag.Case // должно меняться все слово, а не только падеж
+			return &part
+		}
+	}
+	return nil
+}
+
+func isNoun(word sentence.Form) bool {
+	if word.Tag.POS == nil {
+		return false
+	}
+	return *word.Tag.POS == morph.PartOfSpeachNOUN
+}
+
+func filterNounless(parts []*sentence.Part) []*sentence.Part {
 	var result []*sentence.Part
 	for _, part := range parts {
-		if part.Word != nil {
+		if part.Case != nil {
 			result = append(result, part)
 		}
 	}
