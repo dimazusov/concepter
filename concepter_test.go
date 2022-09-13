@@ -25,9 +25,9 @@ func TestNewConcepterAction(t *testing.T) {
 	expectedSentence := getSentence("необходимо выполнить команду для перемещения")
 	findTemplate := getSentence("перемести глагол в повелительном наклонении")
 	findSentence := findTemplate.Sentence
-	replacement := getReplace()
+	replacement := getReplacement()
 
-	parts := splitSentence(fullSentence.Sentence)
+	parts := splitSentence(*deepCopy(fullSentence.Sentence))
 	for i, part := range parts { // 1
 		newPart := getFirstNounCase(*part)
 		if newPart != nil && newPart.Case != nil {
@@ -78,7 +78,7 @@ func TestNewConcepterAction(t *testing.T) {
 	require.Equal(t, true, reflect.DeepEqual(givenSentence, []sentence.Sentence{expectedSentence.Sentence}))
 }
 
-func getReplace() sentence.Form {
+func getReplacement() sentence.Form {
 	str := `{
     "word": "перемещение",
     "normalForm": "перемещение",

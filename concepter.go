@@ -28,6 +28,7 @@ func NewConcepterAction(rep Repository, client MorphClient) *concepter {
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
+	s = deepCopy(*s)
 	parts := splitSentence(*s)
 	for i, part := range parts { // 1
 		newPart := getFirstNounCase(*part)
@@ -55,7 +56,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 		return nil, err
 	}
 	_ = replacement
-	s.Words = append(s.Words[:part.Indexes.I], replacement)
+	s.Words = append(s.Words[:part.Indexes.I], replacement) // 6
 	s.CountWord = uint(len(s.Words))
 
 	// TODO
@@ -74,8 +75,8 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//
 	//// 4. берем normalForm найденного словосочетания и переводим его в имя сущ
 	//c помощью 	ChangePOS(ctx context.Context, word sentence.Form, pos string)
-	//перемести -> переместить
-	//переместить -> перемещение
+	//перемести -> переместить // берем normalForm
+	//переместить -> перемещение // используем changePOS
 	//
 	//// 5. склоняем первое имя сущ. в падеж полученный из 1 (в данном случае родительный падеж)
 	//Inflect(word sentence.Form, wordCase []string)
@@ -89,7 +90,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return []sentence.Sentence{*s}, nil
 }
 
-func deepCopy(sent sentence.Sentence) sentence.Sentence {
+func deepCopy(sent sentence.Sentence) *sentence.Sentence {
 	newSentence := sentence.Sentence{
 		ID:        sent.ID,
 		CountWord: sent.CountWord,
@@ -98,18 +99,18 @@ func deepCopy(sent sentence.Sentence) sentence.Sentence {
 	for i, word := range sent.Words {
 		tag := word.Tag
 		newTag := sentence.Tag{
-			POS:          checkAndCopy(tag.POS),
-			Animacy:      checkAndCopy(tag.Animacy),
-			Aspect:       checkAndCopy(tag.Aspect),
-			Case:         checkAndCopy(tag.Case),
-			Gender:       checkAndCopy(tag.Gender),
-			Involvment:   checkAndCopy(tag.Involvment),
-			Mood:         checkAndCopy(tag.Mood),
-			Number:       checkAndCopy(tag.Number),
-			Person:       checkAndCopy(tag.Person),
-			Tense:        checkAndCopy(tag.Tense),
-			Transitivity: checkAndCopy(tag.Transitivity),
-			Voice:        checkAndCopy(tag.Voice),
+			POS:          checkNil(tag.POS),
+			Animacy:      checkNil(tag.Animacy),
+			Aspect:       checkNil(tag.Aspect),
+			Case:         checkNil(tag.Case),
+			Gender:       checkNil(tag.Gender),
+			Involvment:   checkNil(tag.Involvment),
+			Mood:         checkNil(tag.Mood),
+			Number:       checkNil(tag.Number),
+			Person:       checkNil(tag.Person),
+			Tense:        checkNil(tag.Tense),
+			Transitivity: checkNil(tag.Transitivity),
+			Voice:        checkNil(tag.Voice),
 		}
 		newForm := sentence.Form{
 			ID:                 word.ID,
@@ -123,10 +124,10 @@ func deepCopy(sent sentence.Sentence) sentence.Sentence {
 		newWords[i] = newForm
 	}
 	newSentence.Words = newWords
-	return newSentence
+	return &newSentence
 }
 
-func checkAndCopy(str *string) *string {
+func checkNil(str *string) *string {
 	if str != nil {
 		s := *str
 		return &s
@@ -134,8 +135,7 @@ func checkAndCopy(str *string) *string {
 	return nil
 }
 
-func splitSentence(sent sentence.Sentence) []*sentence.Part {
-	s := deepCopy(sent)
+func splitSentence(s sentence.Sentence) []*sentence.Part {
 	var parts []*sentence.Part
 	for i := 0; uint(i) <= s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
@@ -173,10 +173,10 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*s
 }
 
 func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
-	newSentence := deepCopy(part.Sentence)
+	newSentence := *deepCopy(part.Sentence)
 	newPart := sentence.Part{
 		Sentence: newSentence,
-		Case:     checkAndCopy(part.Case),
+		Case:     checkNil(part.Case),
 		Indexes:  part.Indexes,
 	}
 	for n, word := range part.Sentence.Words {
