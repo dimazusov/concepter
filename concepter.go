@@ -47,6 +47,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if err != nil {
 		return nil, err
 	}
+	// TODO - переделать с одного слова на словосочетание
 	sent.Words[0], err = m.client.ChangePOS(ctx, sent.Words[0], "NOUN") // 4
 	if err != nil {
 		return nil, err
