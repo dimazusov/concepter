@@ -28,7 +28,6 @@ func NewConcepterAction(rep Repository, client MorphClient) *concepter {
 }
 
 func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments []sentence.Sentence, err error) {
-	s = deepCopy(*s)
 	parts := splitSentence(*s)
 	for i, part := range parts { // 1
 		newPart := getFirstNounCase(*part)
@@ -91,51 +90,6 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return []sentence.Sentence{*s}, nil
 }
 
-func deepCopy(sent sentence.Sentence) *sentence.Sentence {
-	newSentence := sentence.Sentence{
-		ID:        sent.ID,
-		CountWord: sent.CountWord,
-	}
-	newWords := make([]sentence.Form, len(sent.Words))
-	for i, word := range sent.Words {
-		tag := word.Tag
-		newTag := sentence.Tag{
-			POS:          checkNil(tag.POS),
-			Animacy:      checkNil(tag.Animacy),
-			Aspect:       checkNil(tag.Aspect),
-			Case:         checkNil(tag.Case),
-			Gender:       checkNil(tag.Gender),
-			Involvment:   checkNil(tag.Involvment),
-			Mood:         checkNil(tag.Mood),
-			Number:       checkNil(tag.Number),
-			Person:       checkNil(tag.Person),
-			Tense:        checkNil(tag.Tense),
-			Transitivity: checkNil(tag.Transitivity),
-			Voice:        checkNil(tag.Voice),
-		}
-		newForm := sentence.Form{
-			ID:                 word.ID,
-			JudgmentID:         word.JudgmentID,
-			Word:               word.Word,
-			NormalForm:         word.NormalForm,
-			Score:              word.Score,
-			PositionInSentence: word.PositionInSentence,
-			Tag:                newTag,
-		}
-		newWords[i] = newForm
-	}
-	newSentence.Words = newWords
-	return &newSentence
-}
-
-func checkNil(str *string) *string {
-	if str != nil {
-		s := *str
-		return &s
-	}
-	return nil
-}
-
 func splitSentence(s sentence.Sentence) []*sentence.Part {
 	var parts []*sentence.Part
 	for i := 0; uint(i) <= s.CountWord; i++ {
@@ -174,14 +128,14 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*s
 }
 
 func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
-	newSentence := *deepCopy(part.Sentence)
+	newSentence := part.Sentence
 	newPart := sentence.Part{
 		Sentence: newSentence,
 		Case:     checkNil(part.Case),
 		Indexes:  part.Indexes,
 	}
 	for n, word := range part.Sentence.Words {
-		if word.Tag.Case == part.Case {
+		if word.Tag.Case == *part.Case {
 			form := newPart.Sentence.Words[n]
 			form = changeCase(form, wordCase)
 			newPart.Sentence.Words[n] = form
@@ -193,14 +147,14 @@ func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
 
 func changeCase(form sentence.Form, wordCase string) sentence.Form {
 	form.Word = form.NormalForm
-	*form.Tag.Case = wordCase
+	form.Tag.Case = wordCase
 	return form
 }
 
 func getFirstNounCase(part sentence.Part) *sentence.Part {
 	for _, word := range part.Sentence.Words {
 		if isNoun(word) {
-			part.Case = word.Tag.Case // должно меняться все слово, а не только падеж
+			part.Case = &word.Tag.Case // должно меняться все слово, а не только падеж
 			return &part
 		}
 	}
@@ -208,10 +162,10 @@ func getFirstNounCase(part sentence.Part) *sentence.Part {
 }
 
 func isNoun(word sentence.Form) bool {
-	if word.Tag.POS == nil {
+	if word.Tag.POS == "" {
 		return false
 	}
-	return *word.Tag.POS == morph.PartOfSpeachNOUN
+	return word.Tag.POS == morph.PartOfSpeachNOUN
 }
 
 func filterNounless(parts []*sentence.Part) []*sentence.Part {

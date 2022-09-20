@@ -25,18 +25,18 @@ type Form struct {
 }
 
 type Tag struct {
-	POS          *string `json:"pos" db:"pos"`
-	Animacy      *string `json:"animacy" db:"animacy"`
-	Aspect       *string `json:"aspect" db:"aspect"`
-	Case         *string `json:"case" db:"case"`
-	Gender       *string `json:"gender" db:"gender"`
-	Involvment   *string `json:"involvment" db:"involvment"`
-	Mood         *string `json:"mood" db:"mood"`
-	Number       *string `json:"number" db:"number"`
-	Person       *string `json:"person" db:"person"`
-	Tense        *string `json:"tense" db:"tense"`
-	Transitivity *string `json:"transitivity" db:"transitivity"`
-	Voice        *string `json:"voice" db:"voice"`
+	POS          string `json:"pos" db:"pos"`
+	Animacy      string `json:"animacy" db:"animacy"`
+	Aspect       string `json:"aspect" db:"aspect"`
+	Case         string `json:"case" db:"case"`
+	Gender       string `json:"gender" db:"gender"`
+	Involvment   string `json:"involvment" db:"involvment"`
+	Mood         string `json:"mood" db:"mood"`
+	Number       string `json:"number" db:"number"`
+	Person       string `json:"person" db:"person"`
+	Tense        string `json:"tense" db:"tense"`
+	Transitivity string `json:"transitivity" db:"transitivity"`
+	Voice        string `json:"voice" db:"voice"`
 }
 
 type Indexes struct {

@@ -27,7 +27,7 @@ func TestNewConcepterAction(t *testing.T) {
 	findSentence := findTemplate.Sentence
 	replacement := getReplacement()
 
-	parts := splitSentence(*deepCopy(fullSentence.Sentence))
+	parts := splitSentence(fullSentence.Sentence)
 	for i, part := range parts { // 1
 		newPart := getFirstNounCase(*part)
 		if newPart != nil && newPart.Case != nil {
