@@ -129,9 +129,14 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*s
 
 func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
 	newSentence := part.Sentence
+	newCase := part.Case
+	if newCase != nil {
+		s := *newCase
+		newCase = &s
+	}
 	newPart := sentence.Part{
 		Sentence: newSentence,
-		Case:     checkNil(part.Case),
+		Case:     newCase,
 		Indexes:  part.Indexes,
 	}
 	for n, word := range part.Sentence.Words {
@@ -153,19 +158,12 @@ func changeCase(form sentence.Form, wordCase string) sentence.Form {
 
 func getFirstNounCase(part sentence.Part) *sentence.Part {
 	for _, word := range part.Sentence.Words {
-		if isNoun(word) {
+		if word.Tag.POS == morph.PartOfSpeachNOUN {
 			part.Case = &word.Tag.Case // должно меняться все слово, а не только падеж
 			return &part
 		}
 	}
 	return nil
-}
-
-func isNoun(word sentence.Form) bool {
-	if word.Tag.POS == "" {
-		return false
-	}
-	return word.Tag.POS == morph.PartOfSpeachNOUN
 }
 
 func filterNounless(parts []*sentence.Part) []*sentence.Part {
