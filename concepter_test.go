@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"optimization/internal/pkg/morph"
 	"reflect"
 	"testing"
 
@@ -20,40 +21,95 @@ func TestNewConcepterAction(t *testing.T) {
 	// givenSentence    перемести - глагол в повелительном наклонении
 
 	partSentence := getSentence("глагол в повелительном наклонении")
-	findSentence := getSentence("перемести глагол в повелительном наклонении")
 	fullSentence := getSentence("необходимо выполнить команду для глагола в повелительном наклонении")
+	expectedSentence := getSentence("необходимо выполнить команду для перемещения")
+	findTemplate := getSentence("перемести глагол в повелительном наклонении")
+	findSentence := findTemplate.Sentence
+	replacement := getReplacement()
 
-	parts := fullSentence.S.SplitSentence()
-	findCases(parts) // 1
-	parts = removeUnnecessary(parts)
+	parts := splitSentence(fullSentence.Sentence)
+	for i, part := range parts { // 1
+		newPart := getFirstNounCase(*part)
+		if newPart != nil && newPart.Case != nil {
+			parts[i] = newPart
+		}
+	}
+	parts = filterNounless(parts)
 	require.NotNil(t, parts)
-	NounsToNomn(parts) // 2
+	for i, part := range parts { // 2
+		parts[i] = changeFirstNoun(*part, morph.CaseNomn)
+	}
 
 	rep := NewMockRepository(ctrl)
-	for _, part := range parts {
-		if part.Sentence.Sentence() == partSentence.S.Sentence() {
+	client := NewMockMorphClient(ctrl)
+	for n, part := range parts {
+		if part.Sentence.Sentence() == partSentence.Sentence.Sentence() {
 			rep.EXPECT().
-				GetByTemplate(context.Background(), partSentence.S).
+				GetByTemplate(context.Background(), partSentence).
 				AnyTimes().
-				Return([]sentence.Template{findSentence}, nil)
+				Return(&findSentence, nil)
+			client.EXPECT().
+				ChangePOS(context.Background(), findSentence.Words[0], "NOUN").
+				Return(replacement, nil)
+			client.EXPECT().
+				Inflect(context.Background(), replacement, "gent").
+				Return(expectedSentence.Sentence.Words[4], nil)
 		} else {
+			sent := sentence.Sentence{
+				ID:        uint(n),
+				CountWord: uint(n),
+				Words:     nil,
+			}
+			template := sentence.Template{
+				Sentence: part.Sentence,
+				Left:     true,
+				Right:    false,
+			}
 			rep.EXPECT().
-				GetByTemplate(context.Background(), part.Sentence).
+				GetByTemplate(context.Background(), template).
 				AnyTimes().
-				Return(nil, nil)
+				Return(&sent, nil)
 		}
 	}
 
-	c := NewConcepterAction(rep)
-	givenSentence, err := c.Handle(context.Background(), &fullSentence.S)
+	c := NewConcepterAction(rep, client)
+	givenSentence, err := c.Handle(context.Background(), &fullSentence.Sentence)
 	require.Nil(t, err)
+	require.Equal(t, true, reflect.DeepEqual(givenSentence, []sentence.Sentence{expectedSentence.Sentence}))
+}
 
-	expectedSentence := []sentence.Sentence{getSentence("необходимо выполнить команду для перемещения").S}
-	require.Equal(t, true, reflect.DeepEqual(givenSentence, expectedSentence))
+func getReplacement() sentence.Form {
+	str := `{
+    "word": "перемещение",
+    "normalForm": "перемещение",
+    "score": 0.625,
+    "positionInSentence": 0,
+    "tag": {
+      "pos": "NOUN",
+      "animacy": "inan",
+      "aspect": "",
+      "case": "gent",
+      "gender": "neut",
+      "involvement": "",
+      "mood": "",
+      "number": "sing",
+      "person": "",
+      "tense": "",
+      "transitivity": "",
+      "voice": ""
+    }
+  }`
+	f := sentence.Form{}
+	err := json.Unmarshal([]byte(str), &f)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	return f
 }
 
 func getSentence(str string) sentence.Template {
 	m := make(map[string]string)
+	// partStr
 	m["глагол в повелительном наклонении"] = `{
 	"left": true,
 	"right": false,
@@ -126,7 +182,7 @@ func getSentence(str string) sentence.Template {
 				"pos": "NOUN",
 				"animacy": "inan",
 				"aspect": "",
-				"case": "loct",
+				"case": "nomn",
 				"gender": "neut",
 				"involvement": "",
 				"mood": "",
@@ -139,6 +195,7 @@ func getSentence(str string) sentence.Template {
 		}]
 	}
 }`
+	// findStr
 	m["перемести глагол в повелительном наклонении"] = `{
 	"left": true,
 	"right": false,
@@ -146,103 +203,110 @@ func getSentence(str string) sentence.Template {
 		"id": 0,
 		"count_words": 5,
 		"words": [{
-			"word": "перемести",
-			"normalForm": "переместить",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "VERB",
-				"animacy": "",
-				"aspect": "perf",
-				"case": "",
-				"gender": "",
-				"involvement": "excl",
-				"mood": "impr",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "tran",
-				"voice": ""
+				"word": "перемести",
+				"normalForm": "переместить",
+				"score": 0.5,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "VERB",
+					"animacy": "",
+					"aspect": "perf",
+					"case": "",
+					"gender": "",
+					"involvement": "excl",
+					"mood": "impr",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "tran",
+					"voice": ""
+				}
+
+			},
+			{
+				"word": "глагол",
+				"normalForm": "глагол",
+				"score": 0.75,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "NOUN",
+					"animacy": "inan",
+					"aspect": "",
+					"case": "nomn",
+					"gender": "masc",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			},
+			{
+				"word": "в",
+				"normalForm": "в",
+				"score": 0.999327,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "PREP",
+					"animacy": "",
+					"aspect": "",
+					"case": "",
+					"gender": "",
+					"involvement": "",
+					"mood": "",
+					"number": "",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			},
+			{
+				"word": "повелительном",
+				"normalForm": "повелительный",
+				"score": 0.5,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "ADJF",
+					"animacy": "",
+					"aspect": "",
+					"case": "loct",
+					"gender": "masc",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
+			},
+			{
+				"word": "наклонении",
+				"normalForm": "наклонение",
+				"score": 1.0,
+				"positionInSentence": 0,
+				"tag": {
+					"pos": "NOUN",
+					"animacy": "inan",
+					"aspect": "",
+					"case": "loct",
+					"gender": "neut",
+					"involvement": "",
+					"mood": "",
+					"number": "sing",
+					"person": "",
+					"tense": "",
+					"transitivity": "",
+					"voice": ""
+				}
 			}
-		}, {
-			"word": "глагол",
-			"normalForm": "глагол",
-			"score": 0.75,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "nomn",
-				"gender": "masc",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		}, {
-			"word": "в",
-			"normalForm": "в",
-			"score": 0.999327,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "PREP",
-				"animacy": "",
-				"aspect": "",
-				"case": "",
-				"gender": "",
-				"involvement": "",
-				"mood": "",
-				"number": "",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		}, {
-			"word": "повелительном",
-			"normalForm": "повелительный",
-			"score": 0.5,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "ADJF",
-				"animacy": "",
-				"aspect": "",
-				"case": "loct",
-				"gender": "masc",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		}, {
-			"word": "наклонении",
-			"normalForm": "наклонение",
-			"score": 1.0,
-			"positionInSentence": 0,
-			"tag": {
-				"pos": "NOUN",
-				"animacy": "inan",
-				"aspect": "",
-				"case": "loct",
-				"gender": "neut",
-				"involvement": "",
-				"mood": "",
-				"number": "sing",
-				"person": "",
-				"tense": "",
-				"transitivity": "",
-				"voice": ""
-			}
-		}]
+		]
 	}
 }`
+	// fullStr
 	m["необходимо выполнить команду для глагола в повелительном наклонении"] = `{
 	"left": false,
 	"right": false,
@@ -397,7 +461,7 @@ func getSentence(str string) sentence.Template {
 					"pos": "NOUN",
 					"animacy": "inan",
 					"aspect": "",
-					"case": "loct",
+					"case": "nomn",
 					"gender": "neut",
 					"involvement": "",
 					"mood": "",
@@ -411,10 +475,11 @@ func getSentence(str string) sentence.Template {
 		]
 	}
 }`
+	// expectedStr
 	m["необходимо выполнить команду для перемещения"] = `{
 	"left": false,
 	"right": false,
-	"verb": {
+	"sentence": {
 		"id": 0,
 		"count_words": 5,
 		"words": [{

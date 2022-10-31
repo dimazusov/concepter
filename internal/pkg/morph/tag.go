@@ -33,7 +33,7 @@ const CaseLoc2 = "loc2" //	второй предложный (местный)	 	
 
 // Число
 const NumberSing = "sing"
-const NumberPlug = "sing"
+const NumberPlug = "plug"
 
 // Род
 const GenderMasc = "masc" // мужской род	хомяк, говорил

@@ -36,10 +36,10 @@ func (m *MockRepository) EXPECT() *MockRepositoryMockRecorder {
 }
 
 // GetByTemplate mocks base method.
-func (m *MockRepository) GetByTemplate(ctx context.Context, j sentence.Sentence) ([]sentence.Template, error) {
+func (m *MockRepository) GetByTemplate(ctx context.Context, j sentence.Template) (*sentence.Sentence, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetByTemplate", ctx, j)
-	ret0, _ := ret[0].([]sentence.Template)
+	ret0, _ := ret[0].(*sentence.Sentence)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -74,9 +74,12 @@ func (m *MockMorphClient) EXPECT() *MockMorphClientMockRecorder {
 }
 
 // ChangePOS mocks base method.
-func (m *MockMorphClient) ChangePOS(ctx context.Context, word sentence.Form, pos string) {
+func (m *MockMorphClient) ChangePOS(ctx context.Context, word sentence.Form, pos string) (sentence.Form, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ChangePOS", ctx, word, pos)
+	ret := m.ctrl.Call(m, "ChangePOS", ctx, word, pos)
+	ret0, _ := ret[0].(sentence.Form)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ChangePOS indicates an expected call of ChangePOS.
@@ -86,9 +89,12 @@ func (mr *MockMorphClientMockRecorder) ChangePOS(ctx, word, pos interface{}) *go
 }
 
 // Inflect mocks base method.
-func (m *MockMorphClient) Inflect(ctx context.Context, word sentence.Form, wordCase []string) {
+func (m *MockMorphClient) Inflect(ctx context.Context, word sentence.Form, wordCase string) (sentence.Form, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "Inflect", ctx, word, wordCase)
+	ret := m.ctrl.Call(m, "Inflect", ctx, word, wordCase)
+	ret0, _ := ret[0].(sentence.Form)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Inflect indicates an expected call of Inflect.
