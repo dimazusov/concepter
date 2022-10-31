@@ -46,6 +46,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	if err != nil {
 		return nil, err
 	}
+	// TODO - переделать с одного слова на словосочетание
 	sent.Words[0], err = m.client.ChangePOS(ctx, sent.Words[0], "NOUN") // 4
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 		return nil, err
 	}
 	_ = replacement
-	s.Words = append(s.Words[:part.Indexes.I], replacement)
+	s.Words = append(s.Words[:part.Indexes.I], replacement) // 6
 	s.CountWord = uint(len(s.Words))
 
 	// TODO
@@ -74,8 +75,8 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	//
 	//// 4. берем normalForm найденного словосочетания и переводим его в имя сущ
 	//c помощью 	ChangePOS(ctx context.Context, word sentence.Form, pos string)
-	//перемести -> переместить
-	//переместить -> перемещение
+	//перемести -> переместить // берем normalForm
+	//переместить -> перемещение // используем changePOS
 	//
 	//// 5. склоняем первое имя сущ. в падеж полученный из 1 (в данном случае родительный падеж)
 	//Inflect(word sentence.Form, wordCase []string)
@@ -89,53 +90,7 @@ func (m concepter) Handle(ctx context.Context, s *sentence.Sentence) (judgments 
 	return []sentence.Sentence{*s}, nil
 }
 
-func deepCopy(sent sentence.Sentence) sentence.Sentence {
-	newSentence := sentence.Sentence{
-		ID:        sent.ID,
-		CountWord: sent.CountWord,
-	}
-	newWords := make([]sentence.Form, len(sent.Words))
-	for i, word := range sent.Words {
-		tag := word.Tag
-		newTag := sentence.Tag{
-			POS:          checkAndCopy(tag.POS),
-			Animacy:      checkAndCopy(tag.Animacy),
-			Aspect:       checkAndCopy(tag.Aspect),
-			Case:         checkAndCopy(tag.Case),
-			Gender:       checkAndCopy(tag.Gender),
-			Involvment:   checkAndCopy(tag.Involvment),
-			Mood:         checkAndCopy(tag.Mood),
-			Number:       checkAndCopy(tag.Number),
-			Person:       checkAndCopy(tag.Person),
-			Tense:        checkAndCopy(tag.Tense),
-			Transitivity: checkAndCopy(tag.Transitivity),
-			Voice:        checkAndCopy(tag.Voice),
-		}
-		newForm := sentence.Form{
-			ID:                 word.ID,
-			JudgmentID:         word.JudgmentID,
-			Word:               word.Word,
-			NormalForm:         word.NormalForm,
-			Score:              word.Score,
-			PositionInSentence: word.PositionInSentence,
-			Tag:                newTag,
-		}
-		newWords[i] = newForm
-	}
-	newSentence.Words = newWords
-	return newSentence
-}
-
-func checkAndCopy(str *string) *string {
-	if str != nil {
-		s := *str
-		return &s
-	}
-	return nil
-}
-
-func splitSentence(sent sentence.Sentence) []*sentence.Part {
-	s := deepCopy(sent)
+func splitSentence(s sentence.Sentence) []*sentence.Part {
 	var parts []*sentence.Part
 	for i := 0; uint(i) <= s.CountWord; i++ {
 		for j := i + 1; uint(j) <= s.CountWord; j++ {
@@ -173,14 +128,19 @@ func (m concepter) findTemplate(ctx context.Context, parts []*sentence.Part) (*s
 }
 
 func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
-	newSentence := deepCopy(part.Sentence)
+	newSentence := part.Sentence
+	newCase := part.Case
+	if newCase != nil {
+		s := *newCase
+		newCase = &s
+	}
 	newPart := sentence.Part{
 		Sentence: newSentence,
-		Case:     checkAndCopy(part.Case),
+		Case:     newCase,
 		Indexes:  part.Indexes,
 	}
 	for n, word := range part.Sentence.Words {
-		if word.Tag.Case == part.Case {
+		if word.Tag.Case == *part.Case {
 			form := newPart.Sentence.Words[n]
 			form = changeCase(form, wordCase)
 			newPart.Sentence.Words[n] = form
@@ -192,25 +152,18 @@ func changeFirstNoun(part sentence.Part, wordCase string) *sentence.Part {
 
 func changeCase(form sentence.Form, wordCase string) sentence.Form {
 	form.Word = form.NormalForm
-	*form.Tag.Case = wordCase
+	form.Tag.Case = wordCase
 	return form
 }
 
 func getFirstNounCase(part sentence.Part) *sentence.Part {
 	for _, word := range part.Sentence.Words {
-		if isNoun(word) {
-			part.Case = word.Tag.Case // должно меняться все слово, а не только падеж
+		if word.Tag.POS == morph.PartOfSpeachNOUN {
+			part.Case = &word.Tag.Case // должно меняться все слово, а не только падеж
 			return &part
 		}
 	}
 	return nil
-}
-
-func isNoun(word sentence.Form) bool {
-	if word.Tag.POS == nil {
-		return false
-	}
-	return *word.Tag.POS == morph.PartOfSpeachNOUN
 }
 
 func filterNounless(parts []*sentence.Part) []*sentence.Part {
